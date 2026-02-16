@@ -45,6 +45,7 @@ export interface ParsedHolding {
   gainLoss: number;
   gainLossPercent: number;
   accountType: string;
+  sector: string;
 }
 
 function cleanDollar(val: string | undefined): number {
@@ -131,6 +132,7 @@ function parseSnowballCSV(csvContent: string): ParsedHolding[] {
       gainLoss,
       gainLossPercent,
       accountType: extractAccountType(portfolios),
+      sector: (row['Sector'] || '').trim(),
     });
   }
 
@@ -200,6 +202,7 @@ function parseFidelityFormat(csvContent: string): ParsedHolding[] {
       gainLoss,
       gainLossPercent,
       accountType: extractAccountType(currentAccount),
+      sector: '',
     });
   }
 

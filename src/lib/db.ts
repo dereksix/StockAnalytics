@@ -142,8 +142,36 @@ export async function upsertHolding(holding: {
   sector: string;
   industry: string;
   accountType: string;
+  _enrichOnly?: boolean;
 }) {
   const database = await getDb();
+
+  // Enrich-only mode: update live price + sector/industry on all rows for this symbol
+  if (holding._enrichOnly) {
+    database.run(
+      `UPDATE holdings SET
+       current_price = CASE WHEN ? > 0 THEN ? ELSE current_price END,
+       market_value = CASE WHEN ? > 0 THEN ? * quantity ELSE market_value END,
+       gain_loss = CASE WHEN ? > 0 THEN (? * quantity) - total_cost_basis ELSE gain_loss END,
+       gain_loss_percent = CASE WHEN ? > 0 AND total_cost_basis > 0
+         THEN ((? * quantity) - total_cost_basis) / total_cost_basis * 100 ELSE gain_loss_percent END,
+       sector = CASE WHEN ? != '' THEN ? ELSE sector END,
+       industry = CASE WHEN ? != '' THEN ? ELSE industry END,
+       last_updated = datetime('now')
+       WHERE symbol = ?`,
+      [
+        holding.currentPrice, holding.currentPrice,
+        holding.currentPrice, holding.currentPrice,
+        holding.currentPrice, holding.currentPrice,
+        holding.currentPrice, holding.currentPrice,
+        holding.sector, holding.sector,
+        holding.industry, holding.industry,
+        holding.symbol,
+      ]
+    );
+    saveDb();
+    return;
+  }
 
   // Check if exists
   const existing = queryOne(database,
