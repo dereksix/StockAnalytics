@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Surface layers */
+  --bg-base: 10, 10, 14;
+  --bg-surface: 18, 18, 24;
+  --bg-elevated: 26, 26, 36;
+  --bg-active: 40, 40, 52;
+
+  /* Borders */
+  --border-subtle: 45, 45, 58;
+  --border-default: 60, 60, 78;
+
+  /* Text hierarchy */
+  --text-primary: 240, 240, 245;
+  --text-secondary: 180, 180, 195;
+  --text-tertiary: 130, 130, 150;
+  --text-muted: 90, 90, 110;
+
+  /* Accent colors */
+  --accent: 99, 130, 255;
+  --accent-hover: 120, 148, 255;
+  --gain: 52, 211, 153;
+  --loss: 248, 113, 113;
+
+  /* Chart palette */
+  --chart-1: 99, 130, 255;
+  --chart-2: 52, 211, 153;
+  --chart-3: 251, 191, 36;
+  --chart-4: 248, 113, 113;
+  --chart-5: 168, 85, 247;
+  --chart-6: 236, 72, 153;
+  --chart-7: 6, 182, 212;
+  --chart-8: 132, 204, 22;
+  --chart-9: 249, 115, 22;
+  --chart-10: 99, 102, 241;
+
+  /* Shadows / Glows */
+  --glow-accent: 0 0 20px rgba(99, 130, 255, 0.15);
+  --glow-gain: 0 0 20px rgba(52, 211, 153, 0.15);
+  --glow-loss: 0 0 20px rgba(248, 113, 113, 0.15);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-card-hover: 0 8px 25px rgba(0, 0, 0, 0.4), 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+body {
+  color: rgb(var(--text-primary));
+  background: rgb(var(--bg-base));
+}
+
+/* Dark scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgb(var(--bg-surface));
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--border-default));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--text-muted));
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border bg-surface border-border-subtle;
+    box-shadow: var(--shadow-card);
+  }
+
+  .card-elevated {
+    @apply rounded-xl border bg-elevated border-border-subtle;
+    box-shadow: var(--shadow-card);
+  }
+
+  .card-gradient-gain {
+    @apply card;
+    background: linear-gradient(135deg, rgba(var(--gain), 0.08) 0%, rgb(var(--bg-surface)) 60%);
+  }
+
+  .card-gradient-loss {
+    @apply card;
+    background: linear-gradient(135deg, rgba(var(--loss), 0.08) 0%, rgb(var(--bg-surface)) 60%);
+  }
+
+  .card-gradient-blue {
+    @apply card;
+    background: linear-gradient(135deg, rgba(var(--accent), 0.08) 0%, rgb(var(--bg-surface)) 60%);
+  }
+}
+
+@layer utilities {
+  .text-gain {
+    color: rgb(var(--gain));
+  }
+  .text-loss {
+    color: rgb(var(--loss));
+  }
+  .bg-gain {
+    background-color: rgba(var(--gain), 0.1);
+  }
+  .bg-loss {
+    background-color: rgba(var(--loss), 0.1);
+  }
+}
+
+/* Recharts dark overrides */
+.recharts-cartesian-grid line {
+  stroke: rgb(var(--border-subtle)) !important;
+}
+
+.recharts-text {
+  fill: rgb(var(--text-tertiary)) !important;
+  font-size: 11px;
+}
+
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: rgb(var(--bg-elevated)) !important;
+  border: 1px solid rgb(var(--border-default)) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4) !important;
+}
+
+.recharts-tooltip-wrapper .recharts-default-tooltip .recharts-tooltip-label {
+  color: rgb(var(--text-primary)) !important;
+}
+
+.recharts-tooltip-wrapper .recharts-default-tooltip .recharts-tooltip-item {
+  color: rgb(var(--text-secondary)) !important;
+}
+
+.recharts-legend-item-text {
+  color: rgb(var(--text-secondary)) !important;
+}
+
+/* Shimmer animation for skeletons */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--bg-elevated)) 0%,
+    rgb(var(--bg-active)) 50%,
+    rgb(var(--bg-elevated)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
