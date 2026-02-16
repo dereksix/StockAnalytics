@@ -45,8 +45,8 @@ export async function getQuote(symbol: string): Promise<MarketQuote | null> {
 
 export async function getQuotes(symbols: string[]): Promise<Map<string, MarketQuote>> {
   const quotes = new Map<string, MarketQuote>();
-  // Fetch in batches of 5 to avoid rate limiting
-  const batchSize = 5;
+  // Fetch sequentially in small batches with generous delay to avoid Yahoo 429s
+  const batchSize = 3;
   for (let i = 0; i < symbols.length; i += batchSize) {
     const batch = symbols.slice(i, i + batchSize);
     const results = await Promise.allSettled(batch.map(s => getQuote(s)));
@@ -55,9 +55,9 @@ export async function getQuotes(symbols: string[]): Promise<Map<string, MarketQu
         quotes.set(batch[idx], result.value);
       }
     });
-    // Small delay between batches
+    // Longer delay between batches to respect Yahoo rate limits
     if (i + batchSize < symbols.length) {
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 2000));
     }
   }
   return quotes;
