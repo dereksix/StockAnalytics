@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseFidelityCSV } from '@/lib/csv-parser';
-import { upsertHolding, clearHoldings } from '@/lib/db';
+import { upsertHolding, clearHoldings, savePortfolioSnapshot } from '@/lib/db';
 import { getQuotes } from '@/lib/market-data';
 
 // Background enrichment — fire and forget
@@ -67,13 +67,48 @@ export async function POST(request: NextRequest) {
         sector: holding.sector || '',
         industry: '',
         accountType: holding.accountType,
+        // Extended Snowball fields
+        country: holding.country,
+        currency: holding.currency,
+        peRatio: holding.peRatio,
+        eps: holding.eps,
+        beta: holding.beta,
+        expenseRatio: holding.expenseRatio,
+        dividendYield: holding.dividendYield,
+        dividendYieldOnCost: holding.dividendYieldOnCost,
+        dividendsPerShare: holding.dividendsPerShare,
+        dividendsReceived: holding.dividendsReceived,
+        dividendGrowth5y: holding.dividendGrowth5y,
+        nextPaymentDate: holding.nextPaymentDate,
+        nextPaymentAmount: holding.nextPaymentAmount,
+        exDividendDate: holding.exDividendDate,
+        dailyChangeDollar: holding.dailyChangeDollar,
+        dailyChangePercent: holding.dailyChangePercent,
+        irr: holding.irr,
+        realizedPnl: holding.realizedPnl,
+        totalProfit: holding.totalProfit,
+        totalProfitPercent: holding.totalProfitPercent,
+        tax: holding.tax,
+        portfolioSharePercent: holding.portfolioSharePercent,
+        targetSharePercent: holding.targetSharePercent,
+        category: holding.category,
+        isin: holding.isin,
+        assetType: holding.assetType,
       });
     }
+
+    // Save portfolio snapshot
+    const totalValue = holdings.reduce((sum, h) => sum + h.marketValue, 0);
+    const totalCost = holdings.reduce((sum, h) => sum + h.totalCostBasis, 0);
+    await savePortfolioSnapshot(totalValue, totalCost, {
+      holdingCount: holdings.length,
+      holdings: holdings.map(h => ({ symbol: h.symbol, value: h.marketValue, cost: h.totalCostBasis })),
+    });
 
     // Respond immediately — dashboard can paint now
     const symbols = [...new Set(holdings.map(h => h.symbol))];
 
-    // Kick off Yahoo enrichment in the background
+    // Kick off enrichment in the background
     enrichInBackground(symbols);
 
     return NextResponse.json({

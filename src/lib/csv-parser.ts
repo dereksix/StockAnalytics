@@ -31,6 +31,32 @@ interface SnowballRow {
   'Country'?: string;
   'Sector'?: string;
   'Portfolios'?: string;
+  // Extended fields
+  'PE'?: string;
+  'EPS'?: string;
+  'Beta'?: string;
+  'Expense ratio'?: string;
+  'Dividend yield'?: string;
+  'Dividend yield on cost'?: string;
+  'Dividends per share'?: string;
+  'Dividends received'?: string;
+  'Dividend growth (5Y)'?: string;
+  'Next payment date'?: string;
+  'Next payment amount'?: string;
+  'Ex-dividend date'?: string;
+  'Daily change'?: string;
+  'Daily change_1'?: string; // Papa rename for duplicate: dollar then percent
+  'IRR'?: string;
+  'Realized P&L'?: string;
+  'Capital gain'?: string;
+  'Capital gain_1'?: string; // percent
+  'Total profit'?: string;
+  'Total profit_1'?: string; // percent
+  'Tax'?: string;
+  "Holding's share"?: string;
+  'Target share'?: string;
+  'Category'?: string;
+  'ISIN'?: string;
   [key: string]: string | undefined;
 }
 
@@ -46,6 +72,33 @@ export interface ParsedHolding {
   gainLossPercent: number;
   accountType: string;
   sector: string;
+  // Extended Snowball fields
+  country?: string;
+  currency?: string;
+  peRatio?: number;
+  eps?: number;
+  beta?: number;
+  expenseRatio?: number;
+  dividendYield?: number;
+  dividendYieldOnCost?: number;
+  dividendsPerShare?: number;
+  dividendsReceived?: number;
+  dividendGrowth5y?: number;
+  nextPaymentDate?: string;
+  nextPaymentAmount?: number;
+  exDividendDate?: string;
+  dailyChangeDollar?: number;
+  dailyChangePercent?: number;
+  irr?: number;
+  realizedPnl?: number;
+  totalProfit?: number;
+  totalProfitPercent?: number;
+  tax?: number;
+  portfolioSharePercent?: number;
+  targetSharePercent?: number;
+  category?: string;
+  isin?: string;
+  assetType?: string;
 }
 
 function cleanDollar(val: string | undefined): number {
@@ -69,6 +122,32 @@ function cleanQuantity(val: string | undefined): number {
   const cleaned = val.replace(/[,\s]/g, '');
   const num = parseFloat(cleaned);
   return isNaN(num) ? 0 : num;
+}
+
+function cleanDateStr(val: string | undefined): string {
+  if (!val) return '';
+  return val.trim();
+}
+
+/**
+ * Detect asset type based on available data hints
+ */
+function detectAssetType(row: SnowballRow): string {
+  const expenseRatio = cleanPercent(row['Expense ratio']);
+  const sector = (row['Sector'] || '').trim().toLowerCase();
+  const name = (row["Holdings' name"] || '').trim().toLowerCase();
+
+  if (expenseRatio > 0) {
+    // Has expense ratio — ETF or Mutual Fund
+    if (name.includes('etf') || name.includes('ishares') || name.includes('vanguard') ||
+        name.includes('spdr') || name.includes('invesco')) {
+      return 'ETF';
+    }
+    return 'Mutual Fund';
+  }
+  if (sector && sector !== '' && sector !== 'n/a') return 'Stock';
+  if (name.includes('etf') || name.includes('index')) return 'ETF';
+  return 'Stock';
 }
 
 function detectFormat(csvContent: string): 'fidelity' | 'snowball' {
@@ -121,6 +200,15 @@ function parseSnowballCSV(csvContent: string): ParsedHolding[] {
     // Account type from Portfolios column
     const portfolios = (row['Portfolios'] || '').trim();
 
+    // Daily change: may be "Daily change" (dollar) and "Daily change_1" (percent)
+    // or sometimes just one column — handle both
+    const dailyChangeDollar = cleanDollar(row['Daily change']);
+    const dailyChangePercent = cleanPercent(row['Daily change_1']);
+
+    // Total profit (dollar then percent via Papa rename)
+    const totalProfit = cleanDollar(row['Total profit']);
+    const totalProfitPercent = cleanPercent(row['Total profit_1']);
+
     holdings.push({
       symbol,
       description: (row["Holdings' name"] || '').trim(),
@@ -133,6 +221,33 @@ function parseSnowballCSV(csvContent: string): ParsedHolding[] {
       gainLossPercent,
       accountType: extractAccountType(portfolios),
       sector: (row['Sector'] || '').trim(),
+      // Extended fields
+      country: (row['Country'] || '').trim(),
+      currency: (row['Currency'] || '').trim(),
+      peRatio: cleanDollar(row['PE']),
+      eps: cleanDollar(row['EPS']),
+      beta: cleanDollar(row['Beta']),
+      expenseRatio: cleanPercent(row['Expense ratio']),
+      dividendYield: cleanPercent(row['Dividend yield']),
+      dividendYieldOnCost: cleanPercent(row['Dividend yield on cost']),
+      dividendsPerShare: cleanDollar(row['Dividends per share']),
+      dividendsReceived: cleanDollar(row['Dividends received']),
+      dividendGrowth5y: cleanPercent(row['Dividend growth (5Y)']),
+      nextPaymentDate: cleanDateStr(row['Next payment date']),
+      nextPaymentAmount: cleanDollar(row['Next payment amount']),
+      exDividendDate: cleanDateStr(row['Ex-dividend date']),
+      dailyChangeDollar,
+      dailyChangePercent,
+      irr: cleanPercent(row['IRR']),
+      realizedPnl: cleanDollar(row['Realized P&L']),
+      totalProfit,
+      totalProfitPercent,
+      tax: cleanDollar(row['Tax']),
+      portfolioSharePercent: cleanPercent(row["Holding's share"]),
+      targetSharePercent: cleanPercent(row['Target share']),
+      category: (row['Category'] || '').trim(),
+      isin: (row['ISIN'] || '').trim(),
+      assetType: detectAssetType(row),
     });
   }
 

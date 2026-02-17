@@ -6,8 +6,11 @@ import Link from 'next/link';
 
 const routeLabels: Record<string, string> = {
   '/': 'Dashboard',
+  '/analytics': 'Analytics',
+  '/portfolio': 'Portfolio',
   '/briefing': 'AI Briefing',
   '/ask': 'Ask AI',
+  '/tools/find-the-dip': 'Find the Dip',
 };
 
 export default function TopBar() {
@@ -24,7 +27,7 @@ export default function TopBar() {
     crumbs.push({ label: symbol || 'Holding' });
   } else {
     crumbs.push({ label: 'Dashboard', href: '/' });
-    crumbs.push({ label: routeLabels[pathname] || pathname.slice(1) });
+    crumbs.push({ label: routeLabels[pathname] || pathname.split('/').pop() || '' });
   }
 
   return (

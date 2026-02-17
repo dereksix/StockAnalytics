@@ -3,12 +3,44 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Brain, MessageSquare, ChevronLeft, ChevronRight, X, TrendingUp } from 'lucide-react';
+import {
+  Home, Brain, MessageSquare, ChevronLeft, ChevronRight, X, TrendingUp,
+  BarChart3, PieChart, TrendingDown, LucideIcon,
+} from 'lucide-react';
 
-const sidebarItems = [
-  { href: '/', label: 'Dashboard', icon: Home },
-  { href: '/briefing', label: 'AI Briefing', icon: Brain },
-  { href: '/ask', label: 'Ask AI', icon: MessageSquare },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+const navGroups: NavGroup[] = [
+  {
+    title: 'MAIN',
+    items: [
+      { href: '/', label: 'Dashboard', icon: Home },
+      { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+      { href: '/portfolio', label: 'Portfolio', icon: PieChart },
+    ],
+  },
+  {
+    title: 'TOOLS',
+    items: [
+      { href: '/tools/find-the-dip', label: 'Find the Dip', icon: TrendingDown },
+    ],
+  },
+  {
+    title: 'AI',
+    items: [
+      { href: '/briefing', label: 'AI Briefing', icon: Brain },
+      { href: '/ask', label: 'Ask AI', icon: MessageSquare },
+    ],
+  },
 ];
 
 export default function Sidebar() {
@@ -30,6 +62,11 @@ export default function Sidebar() {
     setMobileOpen(false);
   }, [pathname]);
 
+  const isActive = (href: string) => {
+    if (href === '/') return pathname === '/';
+    return pathname.startsWith(href);
+  };
+
   const sidebarContent = (
     <nav className="flex flex-1 flex-col">
       {/* Logo */}
@@ -42,28 +79,37 @@ export default function Sidebar() {
         )}
       </div>
 
-      {/* Nav items */}
-      <div className="flex-1 space-y-1 px-3 py-4">
-        {sidebarItems.map(item => {
-          const isActive = item.href === '/'
-            ? pathname === '/'
-            : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
-                isActive
-                  ? 'bg-accent/10 text-accent border-l-2 border-accent -ml-px'
-                  : 'text-text-secondary hover:bg-active hover:text-text-primary'
-              } ${collapsed ? 'justify-center' : ''}`}
-              title={collapsed ? item.label : undefined}
-            >
-              <item.icon className={`h-5 w-5 shrink-0 ${isActive ? 'text-accent' : 'text-text-tertiary group-hover:text-text-primary'}`} />
-              {!collapsed && <span className="animate-fade-in">{item.label}</span>}
-            </Link>
-          );
-        })}
+      {/* Nav groups */}
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+        {navGroups.map(group => (
+          <div key={group.title}>
+            {!collapsed && (
+              <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                {group.title}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {group.items.map(item => {
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 ${
+                      active
+                        ? 'bg-accent/10 text-accent border-l-2 border-accent -ml-px'
+                        : 'text-text-secondary hover:bg-active hover:text-text-primary'
+                    } ${collapsed ? 'justify-center' : ''}`}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <item.icon className={`h-4.5 w-4.5 shrink-0 ${active ? 'text-accent' : 'text-text-tertiary group-hover:text-text-primary'}`} />
+                    {!collapsed && <span className="animate-fade-in">{item.label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Collapse toggle */}
@@ -107,7 +153,7 @@ export default function Sidebar() {
         </div>
       )}
 
-      {/* Mobile hamburger trigger — exposed via global event */}
+      {/* Mobile hamburger trigger */}
       <button
         className="fixed bottom-4 left-4 z-40 lg:hidden flex h-12 w-12 items-center justify-center rounded-full bg-accent text-white shadow-glow-accent"
         onClick={() => setMobileOpen(true)}

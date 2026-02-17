@@ -11,6 +11,33 @@ export interface Holding {
   sector: string;
   industry: string;
   accountType: string;
+  // Snowball extended fields
+  country?: string;
+  currency?: string;
+  peRatio?: number;
+  eps?: number;
+  beta?: number;
+  expenseRatio?: number;
+  dividendYield?: number;
+  dividendYieldOnCost?: number;
+  dividendsPerShare?: number;
+  dividendsReceived?: number;
+  dividendGrowth5y?: number;
+  nextPaymentDate?: string;
+  nextPaymentAmount?: number;
+  exDividendDate?: string;
+  dailyChangeDollar?: number;
+  dailyChangePercent?: number;
+  irr?: number;
+  realizedPnl?: number;
+  totalProfit?: number;
+  totalProfitPercent?: number;
+  tax?: number;
+  portfolioSharePercent?: number;
+  targetSharePercent?: number;
+  category?: string;
+  isin?: string;
+  assetType?: string;
 }
 
 export interface TechnicalSignals {
@@ -111,4 +138,28 @@ export interface Briefing {
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+}
+
+export interface PortfolioMetrics {
+  weightedPE: number;
+  portfolioBeta: number;
+  sharpeRatio: number;
+  sortinoRatio: number;
+  totalDividendYield: number;
+  annualDividendIncome: number;
+}
+
+export interface DividendSummary {
+  totalAnnualIncome: number;
+  averageYield: number;
+  averageYieldOnCost: number;
+  topPayers: { symbol: string; amount: number; yield: number }[];
+  upcomingPayments: { symbol: string; date: string; amount: number }[];
+}
+
+export interface PortfolioSnapshot {
+  date: string;
+  totalValue: number;
+  totalCost: number;
+  snapshotData: string; // JSON
 }

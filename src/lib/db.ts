@@ -25,6 +25,7 @@ async function initDb(): Promise<SqlJsDatabase> {
   }
 
   initSchema(db);
+  runMigrations(db);
   return db;
 }
 
@@ -109,6 +110,54 @@ function initSchema(db: SqlJsDatabase) {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS portfolio_snapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      total_value REAL NOT NULL,
+      total_cost REAL NOT NULL,
+      snapshot_data TEXT,
+      UNIQUE(date)
+    )
+  `);
+
+  saveDb();
+}
+
+// Column names that should exist on the holdings table after migrations
+const EXTENDED_COLUMNS = [
+  'country', 'currency', 'pe_ratio', 'eps', 'beta', 'expense_ratio',
+  'dividend_yield', 'dividend_yield_on_cost', 'dividends_per_share', 'dividends_received',
+  'dividend_growth_5y', 'next_payment_date', 'next_payment_amount', 'ex_dividend_date',
+  'daily_change_dollar', 'daily_change_percent', 'irr', 'realized_pnl',
+  'total_profit', 'total_profit_percent', 'tax',
+  'portfolio_share_percent', 'target_share_percent', 'category', 'isin', 'asset_type',
+];
+
+function runMigrations(db: SqlJsDatabase) {
+  // Get existing column names
+  const cols = db.exec('PRAGMA table_info(holdings)');
+  const existingCols = new Set<string>();
+  if (cols.length > 0) {
+    for (const row of cols[0].values) {
+      existingCols.add(row[1] as string);
+    }
+  }
+
+  // Add any missing columns
+  for (const col of EXTENDED_COLUMNS) {
+    if (!existingCols.has(col)) {
+      const colType = ['country', 'currency', 'next_payment_date', 'ex_dividend_date', 'category', 'isin', 'asset_type'].includes(col)
+        ? 'TEXT DEFAULT \'\''
+        : 'REAL DEFAULT 0';
+      try {
+        db.run(`ALTER TABLE holdings ADD COLUMN ${col} ${colType}`);
+      } catch {
+        // Column already exists or other non-fatal error
+      }
+    }
+  }
+
   saveDb();
 }
 
@@ -129,7 +178,7 @@ function queryOne(db: SqlJsDatabase, sql: string, params: unknown[] = []): Recor
   return results[0];
 }
 
-export async function upsertHolding(holding: {
+export interface UpsertHoldingData {
   symbol: string;
   description: string;
   quantity: number;
@@ -143,7 +192,36 @@ export async function upsertHolding(holding: {
   industry: string;
   accountType: string;
   _enrichOnly?: boolean;
-}) {
+  // Extended Snowball fields
+  country?: string;
+  currency?: string;
+  peRatio?: number;
+  eps?: number;
+  beta?: number;
+  expenseRatio?: number;
+  dividendYield?: number;
+  dividendYieldOnCost?: number;
+  dividendsPerShare?: number;
+  dividendsReceived?: number;
+  dividendGrowth5y?: number;
+  nextPaymentDate?: string;
+  nextPaymentAmount?: number;
+  exDividendDate?: string;
+  dailyChangeDollar?: number;
+  dailyChangePercent?: number;
+  irr?: number;
+  realizedPnl?: number;
+  totalProfit?: number;
+  totalProfitPercent?: number;
+  tax?: number;
+  portfolioSharePercent?: number;
+  targetSharePercent?: number;
+  category?: string;
+  isin?: string;
+  assetType?: string;
+}
+
+export async function upsertHolding(holding: UpsertHoldingData) {
   const database = await getDb();
 
   // Enrich-only mode: update live price + sector/industry on all rows for this symbol
@@ -183,21 +261,57 @@ export async function upsertHolding(holding: {
     database.run(
       `UPDATE holdings SET description = ?, quantity = ?, cost_basis = ?, total_cost_basis = ?,
        current_price = ?, market_value = ?, gain_loss = ?, gain_loss_percent = ?,
-       sector = ?, industry = ?, last_updated = datetime('now')
+       sector = ?, industry = ?,
+       country = ?, currency = ?, pe_ratio = ?, eps = ?, beta = ?, expense_ratio = ?,
+       dividend_yield = ?, dividend_yield_on_cost = ?, dividends_per_share = ?, dividends_received = ?,
+       dividend_growth_5y = ?, next_payment_date = ?, next_payment_amount = ?, ex_dividend_date = ?,
+       daily_change_dollar = ?, daily_change_percent = ?, irr = ?, realized_pnl = ?,
+       total_profit = ?, total_profit_percent = ?, tax = ?,
+       portfolio_share_percent = ?, target_share_percent = ?, category = ?, isin = ?, asset_type = ?,
+       last_updated = datetime('now')
        WHERE symbol = ? AND account_type = ?`,
       [holding.description, holding.quantity, holding.costBasis, holding.totalCostBasis,
        holding.currentPrice, holding.marketValue, holding.gainLoss, holding.gainLossPercent,
-       holding.sector, holding.industry, holding.symbol, holding.accountType]
+       holding.sector, holding.industry,
+       holding.country || '', holding.currency || '', holding.peRatio || 0, holding.eps || 0,
+       holding.beta || 0, holding.expenseRatio || 0,
+       holding.dividendYield || 0, holding.dividendYieldOnCost || 0,
+       holding.dividendsPerShare || 0, holding.dividendsReceived || 0,
+       holding.dividendGrowth5y || 0, holding.nextPaymentDate || '', holding.nextPaymentAmount || 0,
+       holding.exDividendDate || '',
+       holding.dailyChangeDollar || 0, holding.dailyChangePercent || 0,
+       holding.irr || 0, holding.realizedPnl || 0,
+       holding.totalProfit || 0, holding.totalProfitPercent || 0, holding.tax || 0,
+       holding.portfolioSharePercent || 0, holding.targetSharePercent || 0,
+       holding.category || '', holding.isin || '', holding.assetType || '',
+       holding.symbol, holding.accountType]
     );
   } else {
     database.run(
       `INSERT INTO holdings (symbol, description, quantity, cost_basis, total_cost_basis,
        current_price, market_value, gain_loss, gain_loss_percent, sector, industry,
-       account_type, last_updated)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+       account_type, country, currency, pe_ratio, eps, beta, expense_ratio,
+       dividend_yield, dividend_yield_on_cost, dividends_per_share, dividends_received,
+       dividend_growth_5y, next_payment_date, next_payment_amount, ex_dividend_date,
+       daily_change_dollar, daily_change_percent, irr, realized_pnl,
+       total_profit, total_profit_percent, tax,
+       portfolio_share_percent, target_share_percent, category, isin, asset_type,
+       last_updated)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
       [holding.symbol, holding.description, holding.quantity, holding.costBasis,
        holding.totalCostBasis, holding.currentPrice, holding.marketValue, holding.gainLoss,
-       holding.gainLossPercent, holding.sector, holding.industry, holding.accountType]
+       holding.gainLossPercent, holding.sector, holding.industry, holding.accountType,
+       holding.country || '', holding.currency || '', holding.peRatio || 0, holding.eps || 0,
+       holding.beta || 0, holding.expenseRatio || 0,
+       holding.dividendYield || 0, holding.dividendYieldOnCost || 0,
+       holding.dividendsPerShare || 0, holding.dividendsReceived || 0,
+       holding.dividendGrowth5y || 0, holding.nextPaymentDate || '', holding.nextPaymentAmount || 0,
+       holding.exDividendDate || '',
+       holding.dailyChangeDollar || 0, holding.dailyChangePercent || 0,
+       holding.irr || 0, holding.realizedPnl || 0,
+       holding.totalProfit || 0, holding.totalProfitPercent || 0, holding.tax || 0,
+       holding.portfolioSharePercent || 0, holding.targetSharePercent || 0,
+       holding.category || '', holding.isin || '', holding.assetType || '']
     );
   }
 
@@ -314,4 +428,30 @@ export async function clearHoldings() {
   const database = await getDb();
   database.run('DELETE FROM holdings');
   saveDb();
+}
+
+export async function savePortfolioSnapshot(totalValue: number, totalCost: number, holdingsData: object) {
+  const database = await getDb();
+  const today = new Date().toISOString().split('T')[0];
+  const existing = queryOne(database, 'SELECT id FROM portfolio_snapshots WHERE date = ?', [today]);
+  if (existing) {
+    database.run(
+      'UPDATE portfolio_snapshots SET total_value = ?, total_cost = ?, snapshot_data = ? WHERE date = ?',
+      [totalValue, totalCost, JSON.stringify(holdingsData), today]
+    );
+  } else {
+    database.run(
+      'INSERT INTO portfolio_snapshots (date, total_value, total_cost, snapshot_data) VALUES (?, ?, ?, ?)',
+      [today, totalValue, totalCost, JSON.stringify(holdingsData)]
+    );
+  }
+  saveDb();
+}
+
+export async function getPortfolioSnapshots(limit = 365) {
+  const database = await getDb();
+  return queryAll(database,
+    'SELECT * FROM portfolio_snapshots ORDER BY date DESC LIMIT ?',
+    [limit]
+  );
 }

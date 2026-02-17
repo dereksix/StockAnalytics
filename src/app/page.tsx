@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Upload, RefreshCw } from 'lucide-react';
-import PortfolioSummary from '@/components/dashboard/PortfolioSummary';
+import NetWorthHero from '@/components/dashboard/NetWorthHero';
+import DayMovers from '@/components/dashboard/DayMovers';
+import SectorPerformance from '@/components/dashboard/SectorPerformance';
+import DividendsIncome from '@/components/dashboard/DividendsIncome';
+import LatestNews from '@/components/dashboard/LatestNews';
 import HoldingsTable from '@/components/dashboard/HoldingsTable';
 import AllocationChart from '@/components/dashboard/AllocationChart';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -16,8 +20,11 @@ interface PortfolioData {
     totalGainLoss: number;
     totalGainLossPercent: number;
     holdingCount: number;
+    dailyChangeDollar: number;
+    dailyChangePercent: number;
   };
   sectorBreakdown: { sector: string; value: number; weight: number }[];
+  dividendSummary?: { totalAnnualIncome: number; averageYield: number };
 }
 
 export default function Dashboard() {
@@ -65,7 +72,7 @@ export default function Dashboard() {
       const data = await res.json();
 
       if (res.ok) {
-        setImportStatus(`Imported ${data.holdingsImported} holdings, enriched ${data.symbolsEnriched} with live data`);
+        setImportStatus(`Imported ${data.holdingsImported} holdings. Enriching ${data.enriching} symbols in background...`);
         await fetchPortfolio();
       } else {
         setError(data.error || 'Import failed');
@@ -109,8 +116,8 @@ export default function Dashboard() {
       {/* Header with actions */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Portfolio Dashboard</h1>
-          <p className="text-sm text-text-tertiary">AI-powered portfolio intelligence</p>
+          <h1 className="text-2xl font-bold text-text-primary">Dashboard</h1>
+          <p className="text-sm text-text-tertiary">Portfolio overview</p>
         </div>
         <div className="flex items-center gap-3">
           <label className="cursor-pointer inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white shadow-glow-accent hover:bg-accent-hover transition-all duration-150">
@@ -152,23 +159,40 @@ export default function Dashboard() {
       {/* Portfolio content */}
       {portfolio && portfolio.holdings.length > 0 ? (
         <>
-          <PortfolioSummary {...portfolio.summary} />
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <HoldingsTable holdings={portfolio.holdings} />
-            </div>
-            <div>
-              <AllocationChart data={portfolio.sectorBreakdown} />
-            </div>
+          {/* Net Worth Hero */}
+          <NetWorthHero
+            totalValue={portfolio.summary.totalValue}
+            totalGainLoss={portfolio.summary.totalGainLoss}
+            totalGainLossPercent={portfolio.summary.totalGainLossPercent}
+            dailyChange={portfolio.summary.dailyChangeDollar || 0}
+            dailyChangePercent={portfolio.summary.dailyChangePercent || 0}
+            dividendYield={portfolio.dividendSummary?.averageYield || 0}
+          />
+
+          {/* Allocation donut + Day Movers */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <AllocationChart data={portfolio.sectorBreakdown} />
+            <DayMovers holdings={portfolio.holdings} />
           </div>
+
+          {/* Sector Performance + Dividends */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <SectorPerformance holdings={portfolio.holdings} />
+            <DividendsIncome holdings={portfolio.holdings} />
+          </div>
+
+          {/* Holdings Table (full width) */}
+          <HoldingsTable holdings={portfolio.holdings} />
+
+          {/* News */}
+          <LatestNews />
         </>
       ) : (
         <div className="card-elevated rounded-xl border-2 border-dashed border-border-default p-12 text-center">
           <Upload className="mx-auto h-12 w-12 text-text-muted" />
           <h3 className="mt-4 text-lg font-semibold text-text-primary">No portfolio data</h3>
           <p className="mt-2 text-sm text-text-tertiary">
-            Upload a Fidelity CSV export to get started. Go to Fidelity.com, navigate to
-            Positions, and click &quot;Download&quot; to get your CSV file.
+            Upload a Fidelity or Snowball CSV export to get started.
           </p>
         </div>
       )}
