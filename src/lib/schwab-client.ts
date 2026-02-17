@@ -77,6 +77,7 @@ export async function getSchwabQuotes(symbols: string[]): Promise<Map<string, Ma
       const data = await schwabFetch<SchwabQuoteResponse>(`/api/schwab/quotes?symbols=${symbolStr}`);
 
       for (const [sym, entry] of Object.entries(data)) {
+        if (!entry || !entry.quote) continue; // skip symbols with no quote data
         const q = entry.quote;
         const f = entry.fundamental;
         quotes.set(sym, {
